@@ -1,0 +1,11 @@
+[package]
+name = "fmde"
+version = "0.1.0"
+edition = "2024"
+default-run = "fmde"
+
+[[bin]]
+name = "rom-to-text"
+path = "src/utilities/rom-to-text.rs"
+
+[dependencies]
