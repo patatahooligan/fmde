@@ -19,5 +19,5 @@ fn main() {
     // directly from the disc.
     let rom_file = fs::read(file_path).expect("Failed to load file");
 
-    read_card_data(&rom_file);
+    print_card_names(&rom_file);
 }
