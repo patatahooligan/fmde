@@ -25,11 +25,15 @@
 // would be an improvement of the interface.
 
 const SECTOR_SIZE_BYTES: usize = 2352;
+
 const DATA_OFFSET_BYTES: usize = 24;
 const DATA_SIZE_BYTES: usize = 2048;
 
 const SLUS_OFFSET_SECTORS: usize = 24;
 const SLUS_SIZE_SECTORS: usize = 929;
+
+const WA_MRG_OFFSET_SECTORS: usize = 10102;
+const WA_MRG_SIZE_SECTORS: usize = 18432;
 
 /// Extract `SLUS-014.11` from the bin file. This conversion throws away
 /// all the metadata required by CD-ROM/XA and returns a concatenated
@@ -37,6 +41,15 @@ const SLUS_SIZE_SECTORS: usize = 929;
 pub fn get_slus_from_bin(rom_file: &Vec<u8>) -> Vec<u8> {
     let start = SLUS_OFFSET_SECTORS * SECTOR_SIZE_BYTES;
     let end = start + SLUS_SIZE_SECTORS * SECTOR_SIZE_BYTES;
+    return cdxa_form1_to_raw_data(&rom_file[start..end]);
+}
+
+/// Extract `WA_MRG.MRG` from the bin file. This conversion throws away
+/// all the metadata required by CD-ROM/XA and returns a concatenated
+/// vector of the raw data.
+pub fn get_wa_mrg_from_bin(rom_file: &Vec<u8>) -> Vec<u8> {
+    let start = WA_MRG_OFFSET_SECTORS * SECTOR_SIZE_BYTES;
+    let end = start + WA_MRG_SIZE_SECTORS * SECTOR_SIZE_BYTES;
     return cdxa_form1_to_raw_data(&rom_file[start..end]);
 }
 
