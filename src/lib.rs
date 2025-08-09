@@ -39,14 +39,14 @@ fn get_card_names(slus: &Vec<u8>) -> Vec<String> {
 fn get_card_list(card_list_data: &[u8]) -> duelist::CardList {
     assert!(
         card_list_data.len() == CARDLIST_SIZE,
-        "Card lists must be exactly 1444 bytes (2 per card)");
+        "Card lists must be exactly 1444 bytes (2 per card)"
+    );
 
     let mut card_list = duelist::CardList::new();
 
     for i in 0..duelist::NUMBER_OF_CARDS {
         let low_byte: u16 = card_list_data[2 * i].into();
-        let high_byte: u16 =
-            card_list_data[2 * i + 1].into();
+        let high_byte: u16 = card_list_data[2 * i + 1].into();
 
         card_list.card_odds[i] = (high_byte << 8) + low_byte;
     }
@@ -76,23 +76,22 @@ fn get_duelist_info(slus: &Vec<u8>, wa_mrg: &Vec<u8>) -> Vec<duelist::Duelist> {
         let current_duelist_offset =
             DUELIST_DATA_OFFSET + (DUELIST_DATA_SIZE * duel);
 
-        let deck_offset =
-            current_duelist_offset + DUELIST_DECK_RELATIVE_OFFSET;
-        let drops_sa_pow_offset =
-            current_duelist_offset + DUELIST_SAPOW_OFFSET;
-        let drops_bcd_offset =
-            current_duelist_offset + DUELIST_BCD_OFFSET;
-        let drops_sa_tec_offset =
-            current_duelist_offset + DUELIST_SATEC_OFFSET;
+        let deck_offset = current_duelist_offset + DUELIST_DECK_RELATIVE_OFFSET;
+        let drops_sa_pow_offset = current_duelist_offset + DUELIST_SAPOW_OFFSET;
+        let drops_bcd_offset = current_duelist_offset + DUELIST_BCD_OFFSET;
+        let drops_sa_tec_offset = current_duelist_offset + DUELIST_SATEC_OFFSET;
 
-        duelist_info.deck = get_card_list(
-            &wa_mrg[deck_offset..deck_offset + CARDLIST_SIZE]);
+        duelist_info.deck =
+            get_card_list(&wa_mrg[deck_offset..deck_offset + CARDLIST_SIZE]);
         duelist_info.drops_sa_pow = get_card_list(
-            &wa_mrg[drops_sa_pow_offset..drops_sa_pow_offset + CARDLIST_SIZE]);
+            &wa_mrg[drops_sa_pow_offset..drops_sa_pow_offset + CARDLIST_SIZE],
+        );
         duelist_info.drops_bcd = get_card_list(
-            &wa_mrg[drops_bcd_offset..drops_bcd_offset + CARDLIST_SIZE]);
+            &wa_mrg[drops_bcd_offset..drops_bcd_offset + CARDLIST_SIZE],
+        );
         duelist_info.drops_sa_tec = get_card_list(
-            &wa_mrg[drops_sa_tec_offset..drops_sa_tec_offset + CARDLIST_SIZE]);
+            &wa_mrg[drops_sa_tec_offset..drops_sa_tec_offset + CARDLIST_SIZE],
+        );
 
         duelists.push(duelist_info);
     }
@@ -108,9 +107,11 @@ fn print_card_list(card_list: &duelist::CardList, card_names: &[String]) {
             continue;
         }
 
-        println!("  {}: {}",
+        println!(
+            "  {}: {}",
             format!("{:04}", card_list.card_odds[i]),
-            card_names[i]);
+            card_names[i]
+        );
     }
 }
 

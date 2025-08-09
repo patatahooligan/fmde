@@ -3,6 +3,15 @@
 Forbidden Memories Data Editor (fmde) is a tool to view and modify the
 data in the PlayStation game "Yu-Gi-Oh! Forbidden Memories".
 
+As of writing this, fmde is incomplete. It can currently find and read
+some of the game data inside a .bin file. It prints this data to stdout
+so we can verify that it's reading correctly. Next steps to make fmde
+functional would be:
+
+- Implement reading a configuration (deck lists, drop rates) from a
+  static file
+- Implement writing to a .bin file
+
 ## Building
 
 This project is managed by cargo, the rust package manager. To build,
