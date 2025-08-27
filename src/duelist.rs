@@ -92,6 +92,21 @@ fn read_card_list(card_list_data: &[u8]) -> CardList {
     return card_list;
 }
 
+fn write_card_list_to_slice(card_list: &CardList, target: &mut [u8]) {
+    assert!(
+        target.len() == CARDLIST_SIZE,
+        "Card lists must be exactly 1444 bytes (2 per card)"
+    );
+
+    for i in 0..NUMBER_OF_CARDS {
+        let low_byte = (card_list.card_odds[i]) as u8;
+        let high_byte = (card_list.card_odds[i] >> 8) as u8;
+
+        target[2 * i] = low_byte;
+        target[2 * i + 1] = high_byte;
+    }
+}
+
 fn read_duelist(
     slus: &Vec<u8>,
     wa_mrg: &Vec<u8>,
@@ -135,6 +150,38 @@ fn read_duelist(
     return duelist_info;
 }
 
+fn write_duelist(
+    wa_mrg: &mut Vec<u8>,
+    duelist_id: usize,
+    duelist_info: &Duelist,
+) {
+    // Relative offset from the start of the duelist data array.
+    let current_duelist_offset =
+        DUELIST_DATA_OFFSET + (DUELIST_DATA_SIZE * duelist_id);
+
+    let deck_offset = current_duelist_offset + DUELIST_DECK_RELATIVE_OFFSET;
+    let drops_sa_pow_offset = current_duelist_offset + DUELIST_SAPOW_OFFSET;
+    let drops_bcd_offset = current_duelist_offset + DUELIST_BCD_OFFSET;
+    let drops_sa_tec_offset = current_duelist_offset + DUELIST_SATEC_OFFSET;
+
+    write_card_list_to_slice(
+        &duelist_info.deck,
+        &mut wa_mrg[deck_offset..deck_offset + CARDLIST_SIZE],
+    );
+    write_card_list_to_slice(
+        &duelist_info.drops_sa_pow,
+        &mut wa_mrg[drops_sa_pow_offset..drops_sa_pow_offset + CARDLIST_SIZE],
+    );
+    write_card_list_to_slice(
+        &duelist_info.drops_bcd,
+        &mut wa_mrg[drops_bcd_offset..drops_bcd_offset + CARDLIST_SIZE],
+    );
+    write_card_list_to_slice(
+        &duelist_info.drops_sa_tec,
+        &mut wa_mrg[drops_sa_tec_offset..drops_sa_tec_offset + CARDLIST_SIZE],
+    );
+}
+
 pub fn read_all_duelists(slus: &Vec<u8>, wa_mrg: &Vec<u8>) -> Vec<Duelist> {
     let mut duelists = Vec::new();
 
@@ -145,4 +192,12 @@ pub fn read_all_duelists(slus: &Vec<u8>, wa_mrg: &Vec<u8>) -> Vec<Duelist> {
     }
 
     return duelists;
+}
+
+pub fn write_all_duelists(wa_mrg: &mut Vec<u8>, duelists: &[Duelist]) {
+    assert!(duelists.len() == NUMBER_OF_DUELISTS);
+
+    for duelist_id in 0..NUMBER_OF_DUELISTS {
+        write_duelist(wa_mrg, duelist_id, &duelists[duelist_id]);
+    }
 }

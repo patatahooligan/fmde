@@ -27,8 +27,8 @@ fn print_card_list(card_list: &duelist::CardList, card_names: &[String]) {
 pub fn print_game_data(rom_file: &Vec<u8>) {
     //TODO: Assert that rom_file size is correct.
 
-    let slus = image::get_slus_from_bin(rom_file);
-    let wa_mrg = image::get_wa_mrg_from_bin(rom_file);
+    let slus = image::read_slus_from_bin(rom_file);
+    let wa_mrg = image::read_wa_mrg_from_bin(rom_file);
 
     let duelist_info = duelist::read_all_duelists(&slus, &wa_mrg);
     let card_names = duelist::get_card_names(&slus);
