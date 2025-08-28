@@ -9,3 +9,4 @@ name = "rom-to-text"
 path = "src/utilities/rom-to-text.rs"
 
 [dependencies]
+crc = "3.2.1"

@@ -24,16 +24,43 @@
 // ROM. Even just some types that do nothing more than wrap the &[u8]
 // would be an improvement of the interface.
 
+use crc;
+
 const SECTOR_SIZE_BYTES: usize = 2352;
 
 const DATA_OFFSET_BYTES: usize = 24;
 const DATA_SIZE_BYTES: usize = 2048;
+
+const CRC_OFFSET_BYTES: usize = 2072;
 
 const SLUS_OFFSET_SECTORS: usize = 24;
 const SLUS_SIZE_SECTORS: usize = 929;
 
 const WA_MRG_OFFSET_SECTORS: usize = 10102;
 const WA_MRG_SIZE_SECTORS: usize = 18432;
+
+fn calculate_crc(raw_data: &[u8]) -> u32 {
+    assert!(raw_data.len() == DATA_SIZE_BYTES + 8);
+
+    const CUSTOM_ALG: crc::Algorithm<u32> = crc::Algorithm {
+        width: 32,
+        poly: 0x8001801b,
+        init: 0x0,
+        refin: true,
+        refout: true,
+        xorout: 0x0,
+        // I'm not sure what these last two are, but they don't seem to
+        // be part of the calculation. They are probably either for
+        // testing or for use on the receiving side.
+        check: 0x0,
+        residue: 0x0,
+    };
+
+    let crc = crc::Crc::<u32>::new(&CUSTOM_ALG);
+    let mut digest = crc.digest();
+    digest.update(raw_data);
+    return digest.finalize();
+}
 
 /// Extract `SLUS-014.11` from the bin file. This conversion throws away
 /// all the metadata required by CD-ROM/XA and returns a concatenated
@@ -105,6 +132,14 @@ fn write_data_to_sector(raw_data: &[u8], sector: &mut [u8]) {
 
     sector[DATA_OFFSET_BYTES..DATA_OFFSET_BYTES + DATA_SIZE_BYTES]
         .copy_from_slice(raw_data);
+
+    let crc_segment = &sector[16..DATA_OFFSET_BYTES + DATA_SIZE_BYTES];
+    let crc = calculate_crc(crc_segment);
+
+    sector[CRC_OFFSET_BYTES] = crc as u8;
+    sector[CRC_OFFSET_BYTES + 1] = (crc >> 8) as u8;
+    sector[CRC_OFFSET_BYTES + 2] = (crc >> 16) as u8;
+    sector[CRC_OFFSET_BYTES + 3] = (crc >> 24) as u8;
 }
 
 /// Extract and concatenate the raw data from a slice of CD-ROM/XA Form

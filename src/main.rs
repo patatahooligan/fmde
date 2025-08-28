@@ -23,8 +23,8 @@ fn main() {
     // directly from the disc.
     let mut rom_file = fs::read(rom_path).expect("Failed to load file");
 
-    print_game_data(&rom_file);
     testing::passthrough_test(&mut rom_file);
+    print_game_data(&rom_file);
 
     let mut output_file = fs::File::create_new(output_path).unwrap();
     output_file.write_all(&rom_file).unwrap();
