@@ -47,6 +47,13 @@ By default, this places the executable under `$HOME/.cargo/bin`. Add
 this to your `PATH` or run the application using the absolute path
 `~/.cargo/bin/fmde`.
 
+Currently the only useful functionality is to dump all the decks and
+card drops into a collection of .csv files. This can be done with
+
+```bash
+fmde dump path/to/rom path/to/dump/directory
+```
+
 ## Documentation
 
 Writing fmde requires experimentation and studying random umaintained
