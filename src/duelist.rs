@@ -260,7 +260,9 @@ fn dump_cardlist_csv(
     for (card_id, card_rate) in cardlist.card_rate.iter().enumerate() {
         if *card_rate != 0 {
             csv.write_record(&[
-                &card_id.to_string(),
+                // Shift card_id by 1 to match the official number which
+                // starts at 1.
+                &(card_id + 1).to_string(),
                 &card_rate.to_string(),
                 &card_names[card_id],
             ])
@@ -279,7 +281,9 @@ fn load_cardlist_csv(csv_path: &std::path::Path) -> CardList {
 
     for record_result in csv.records() {
         let record = record_result.unwrap();
-        let card_id = record.get(0).unwrap().parse::<usize>().unwrap();
+        // Shift card_id by 1 to match the official number which
+        // starts at 1.
+        let card_id = record.get(0).unwrap().parse::<usize>().unwrap() - 1;
         let card_rate = record.get(1).unwrap().parse::<u16>().unwrap();
 
         // We don't have to check that the numbers are >0 because they
