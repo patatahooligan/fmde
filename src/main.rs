@@ -19,25 +19,37 @@ enum Command {
     /// Read the ROM and dump all of its data in csv files.
     Dump {
         /// Path of the ROM file.
-        rom_path: String,
+        rom_path: std::path::PathBuf,
 
         /// Directory in which to dump the data. If it doesn't
         /// exist it will be created.
         dump_dir: std::path::PathBuf,
     },
 
+    /// Apply a mod to a ROM file. The mod is defined as a set of .csv
+    /// files that define each duelists deck and droplists.
+    Apply {
+        /// Path of the ROM file.
+        rom_path: std::path::PathBuf,
+
+        csv_path: std::path::PathBuf,
+
+        /// Path to save the output.
+        output_path: std::path::PathBuf,
+    },
+
     /// Extract the data from the ROM and rewrite them in. Useful only
     /// for debugging read/write functionality.
     Passthrough {
         /// Path of the ROM file.
-        rom_path: String,
+        rom_path: std::path::PathBuf,
 
         /// Path to save the output.
         output_path: std::path::PathBuf,
     },
 }
 
-fn dump_data(rom_path: &String, dump_dir: &std::path::Path) {
+fn dump_data(rom_path: &std::path::Path, dump_dir: &std::path::Path) {
     // TODO: this loads the entire file in memory. Try accessing it
     // directly from the disc.
     let rom_file = fs::read(rom_path).expect("Failed to load file");
@@ -51,7 +63,26 @@ fn dump_data(rom_path: &String, dump_dir: &std::path::Path) {
     duelist::dump_all_duelists_csv(&dump_dir, &duelist_info, &card_names);
 }
 
-fn passthrough_test(rom_path: &String, output_path: &std::path::Path) {
+fn apply(
+    rom_path: &std::path::Path,
+    csv_dir: &std::path::Path,
+    output_path: &std::path::Path,
+) {
+    let mut rom_file = fs::read(rom_path).expect("Failed to load file");
+    let slus = image::read_slus_from_bin(&rom_file);
+    let mut wa_mrg = image::read_wa_mrg_from_bin(&rom_file);
+
+    let mut duelist_info = duelist::read_all_duelists(&slus, &wa_mrg);
+    duelist::load_all_duelists_csv(csv_dir, &mut duelist_info);
+    duelist::write_all_duelists(&mut wa_mrg, &duelist_info);
+
+    image::write_wa_mrg_to_bin(&mut rom_file, &wa_mrg);
+
+    let mut output_file = fs::File::create_new(output_path).unwrap();
+    output_file.write_all(&rom_file).unwrap();
+}
+
+fn passthrough_test(rom_path: &std::path::Path, output_path: &std::path::Path) {
     let mut rom_file = fs::read(rom_path).expect("Failed to load file");
 
     testing::passthrough_test(&mut rom_file);
@@ -65,6 +96,13 @@ fn main() {
     match args.command {
         Command::Dump { rom_path, dump_dir } => {
             dump_data(&rom_path, &dump_dir);
+        }
+        Command::Apply {
+            rom_path,
+            csv_path,
+            output_path,
+        } => {
+            apply(&rom_path, &csv_path, &output_path);
         }
         Command::Passthrough {
             rom_path,

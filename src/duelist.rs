@@ -1,4 +1,9 @@
-use csv::Writer;
+//! Module to manipulate duelist data. The function names follow this
+//! (arbitrary) convention to indicate what they operate on:
+//! - read/write if they operate on the ROM file
+//! - load/dump if they operate on csv files
+
+use csv::{ReaderBuilder, Writer};
 
 use crate::text;
 
@@ -26,7 +31,7 @@ const DUELIST_SATEC_OFFSET: usize = 0x111C;
 /// - Generate the duelist's deck
 /// - Determine the card dropped at the end of a victory
 pub struct CardList {
-    pub card_odds: [u16; NUMBER_OF_CARDS],
+    pub card_rate: [u16; NUMBER_OF_CARDS],
 }
 
 impl CardList {
@@ -35,14 +40,22 @@ impl CardList {
     /// before being written.
     pub fn new() -> CardList {
         return CardList {
-            card_odds: [0; NUMBER_OF_CARDS],
+            card_rate: [0; NUMBER_OF_CARDS],
         };
     }
 
     /// Check that a CardList is valid. This means that all weights
     /// should add to 2048.
     pub fn is_valid(&self) -> bool {
-        return self.card_odds.iter().sum::<u16>() == 2048;
+        return self.card_rate.iter().sum::<u16>() == 2048;
+    }
+
+    pub fn print(&self) {
+        for (id, cr) in self.card_rate.iter().enumerate() {
+            if *cr != 0 {
+                println!("{}: {}", id, cr);
+            }
+        }
     }
 }
 
@@ -99,7 +112,7 @@ fn read_card_list(card_list_data: &[u8]) -> CardList {
         let low_byte: u16 = card_list_data[2 * i].into();
         let high_byte: u16 = card_list_data[2 * i + 1].into();
 
-        card_list.card_odds[i] = (high_byte << 8) + low_byte;
+        card_list.card_rate[i] = (high_byte << 8) + low_byte;
     }
 
     return card_list;
@@ -108,7 +121,6 @@ fn read_card_list(card_list_data: &[u8]) -> CardList {
 /// Write a CardList into the given slice. This is written in the format
 /// expected for the wa_mrg file.
 fn write_card_list_to_slice(card_list: &CardList, target: &mut [u8]) {
-
     assert!(
         target.len() == CARDLIST_SIZE,
         "Card lists must be exactly 1444 bytes (2 per card)"
@@ -119,8 +131,8 @@ fn write_card_list_to_slice(card_list: &CardList, target: &mut [u8]) {
     );
 
     for i in 0..NUMBER_OF_CARDS {
-        let low_byte = (card_list.card_odds[i]) as u8;
-        let high_byte = (card_list.card_odds[i] >> 8) as u8;
+        let low_byte = (card_list.card_rate[i]) as u8;
+        let high_byte = (card_list.card_rate[i] >> 8) as u8;
 
         target[2 * i] = low_byte;
         target[2 * i + 1] = high_byte;
@@ -233,13 +245,19 @@ pub fn write_all_duelists(wa_mrg: &mut Vec<u8>, duelists: &[Duelist]) {
 /// header and follows the following form:
 ///
 /// card_id,rate,card_name
+///
+/// This function does not create rows for cards whose rate is equal to
+/// `0`. The game does have entries for zero-rate cards because the data
+/// is stored in plain arrays and the CardList objects reflect that, but
+/// we don't want to include these entries in the csv files. If we did
+/// they would become too tedious to work with.
 fn dump_cardlist_csv(
     csv_path: &std::path::Path,
     cardlist: &CardList,
     card_names: &[String],
 ) {
     let mut csv = Writer::from_path(csv_path).unwrap();
-    for (card_id, card_rate) in cardlist.card_odds.iter().enumerate() {
+    for (card_id, card_rate) in cardlist.card_rate.iter().enumerate() {
         if *card_rate != 0 {
             csv.write_record(&[
                 &card_id.to_string(),
@@ -249,6 +267,36 @@ fn dump_cardlist_csv(
             .unwrap();
         }
     }
+}
+
+/// Load a cardlist from a .csv file at the given path.
+fn load_cardlist_csv(csv_path: &std::path::Path) -> CardList {
+    let mut card_list = CardList::new();
+    let mut csv = ReaderBuilder::new()
+        .has_headers(false)
+        .from_path(csv_path)
+        .unwrap();
+
+    for record_result in csv.records() {
+        let record = record_result.unwrap();
+        let card_id = record.get(0).unwrap().parse::<usize>().unwrap();
+        let card_rate = record.get(1).unwrap().parse::<u16>().unwrap();
+
+        // We don't have to check that the numbers are >0 because they
+        // are unsigned types. If they are negative, they will simply
+        // fail to parse above.
+        assert!(card_id < NUMBER_OF_CARDS);
+        assert!(card_rate < 2048);
+
+        card_list.card_rate[card_id] = card_rate;
+    }
+
+    if !card_list.is_valid() {
+        println!("Invalid card list at {}", csv_path.display());
+        card_list.print();
+        panic!();
+    }
+    return card_list;
 }
 
 /// Dump a single duelist's data into a collection of .csv's under the
@@ -280,6 +328,40 @@ fn dump_duelist_csv(
     );
 }
 
+/// Load all duelist data from a collection of .csv's under the given
+/// directory. Any and all files might be missing, as well as the
+/// directory itself. This exists to allow the use of "sparse" files,
+/// where you can define only the parts of the mod that you intend to
+/// change from the original rom. This is also why we have to take the
+/// Duelist as a `&mut`. The caller must make sure that the object is
+/// valid before passing it to this function. The intended use is for
+/// the object to have been created by reading the rom so that this
+/// function can selectively update parts of it as the user desires.
+///
+/// On the other hand, the function panics if:
+/// - the file exists but cannot be parsed
+/// - the check itself for the file's existence fails
+/// - the file is deleted while the program is running (possibly)
+fn load_duelist_csv(dir_path: &std::path::Path, duelist: &mut Duelist) {
+    let deck_path = dir_path.join("deck.csv");
+    let drops_bcd_path = dir_path.join("drops-bcd.csv");
+    let drops_sa_pow_path = dir_path.join("drops-sa-pow.csv");
+    let drops_sa_tec_path = dir_path.join("drops-sa-tec.csv");
+
+    if deck_path.try_exists().unwrap() {
+        duelist.deck = load_cardlist_csv(&deck_path);
+    }
+    if drops_bcd_path.try_exists().unwrap() {
+        duelist.drops_bcd = load_cardlist_csv(&drops_bcd_path);
+    }
+    if drops_sa_pow_path.try_exists().unwrap() {
+        duelist.drops_sa_pow = load_cardlist_csv(&drops_sa_pow_path);
+    }
+    if drops_sa_tec_path.try_exists().unwrap() {
+        duelist.drops_sa_tec = load_cardlist_csv(&drops_sa_tec_path);
+    }
+}
+
 /// Dump all of the cardlists - both decks and drops - to the given
 /// directory.
 pub fn dump_all_duelists_csv(
@@ -294,5 +376,21 @@ pub fn dump_all_duelists_csv(
         std::fs::create_dir(&duelist_dir).unwrap();
 
         dump_duelist_csv(&duelist_dir, &duelist, &card_names);
+    }
+}
+
+/// Load all the duelists from csv files and return them as a vector.
+pub fn load_all_duelists_csv(
+    top_level_dir: &std::path::Path,
+    duelists: &mut Vec<Duelist>,
+) {
+    for (duelist_id, duelist) in duelists.iter_mut().enumerate() {
+        // TODO: Allow directory names in the form "1. <ARBITRARY
+        // NAME>". The name would exist to aid the user and would be
+        // completely ignored by us.
+        let duelist_dir = top_level_dir
+            .join((duelist_id + 1).to_string() + "." + &duelist.name);
+
+        load_duelist_csv(&duelist_dir, duelist);
     }
 }
