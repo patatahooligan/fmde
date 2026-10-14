@@ -32,6 +32,7 @@ enum Command {
         /// Path of the ROM file.
         rom_path: std::path::PathBuf,
 
+        /// Path to directory with CSV files to patch into the game
         csv_path: std::path::PathBuf,
 
         /// Path to save the output.
