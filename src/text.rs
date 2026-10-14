@@ -10,11 +10,12 @@ const STRING_TERMINATOR: u8 = 255;
 /// code outside this module would most likely prefer to work directly
 /// with Strings. This might be made private in the future.
 pub fn u8_to_char(byte: u8) -> char {
-    // I've verified that this is correct for decoding card text in the US
-    // version (SLUS-01411). I tried it on the EU version (SLES-03947) and
-    // it seems that some characters are correct, but not all. It seems that
-    // mods are generally based on SLUS-01411 so let's support only that for
-    // now and we'll see about SLES-03947 later.
+    // I've verified that this is correct for decoding card text in the
+    // US version (SLUS-01411). I tried it on the EU version
+    // (SLES-03947) and it seems that some characters are correct,
+    // but not all. It seems that mods are generally based on
+    // SLUS-01411 so let's support only that for now and we'll see
+    // about SLES-03947 later.
     match byte {
         0x18 => 'A',
         0x2D => 'B',
